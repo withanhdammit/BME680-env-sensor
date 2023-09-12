@@ -1,0 +1,143 @@
+substitutions:
+  sensorname: sensor-bme680
+  entitysub: BME680
+  ipaddress: 10.1.2.3
+  domain: !secret domain
+
+esphome:
+  name: $sensorname
+
+esp8266:
+  board: d1_mini
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: !secret api_key
+
+ota:
+  password: !secret ota_password
+
+wifi:
+  ssid: !secret iot_ssid
+  password: !secret iot_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: $sensorname
+    password: !secret esphome_password
+
+  use_address: $sensorname.$domain
+  manual_ip:
+    static_ip: $ipaddress
+    subnet: !secret subnet
+    gateway: !secret gateway
+    dns1: !secret dns_iot
+
+captive_portal:
+
+web_server:
+  port: 80
+  auth:
+    username: !secret web_server_username
+    password: !secret web_server_password
+
+# Device config
+i2c:
+  scan: true
+
+switch:
+  - platform: restart
+    name: "$entitysub Sensor Restart"
+
+bme680_bsec:
+  address: 0x77 # 0x76 or 0x77
+  temperature_offset: 0 # if temp reads 5 deg high, set this to 5
+  iaq_mode: static # static or mobile (on a person or moveable device)
+  sample_rate: lp # lp=low power (3 sec) or ulp=ultra low power (5 min)
+                  # note you can set on a per-sensor level
+  state_save_interval: 6h
+
+sensor:
+  - platform: wifi_signal
+    name: "$entitysub WiFi Signal"
+    update_interval: 60s
+  - platform: uptime
+    name: "$entitysub Uptime"
+    update_interval: 60s
+
+  # BME680
+  - platform: bme680_bsec
+    temperature:
+      name: "$entitysub Temperature" # in °C
+      id: temperature
+#      sample_rate: ulp
+      filters:
+        - median
+    humidity:
+      name: "$entitysub Relative Humidity" # in %
+      id: humidity
+#      sample_rate: lp
+      filters:
+        - median
+    pressure:
+      name: "$entitysub Barometric Pressure" # in HPa
+#      sample_rate: ulp
+      filters:
+        - median
+    gas_resistance:
+      name: "$entitysub Gas Resistance" # in Ω
+      filters:
+        - median
+    iaq:
+      name: "$entitysub IAQ Level" # numeric of 0, 1, 2, 3
+      id: iaq
+    co2_equivalent:
+      name: "$entitysub CO2 Equivalent" # in ppm
+      filters:
+        - median
+    breath_voc_equivalent:
+      name: "$entitysub Breath VOC Equivalent" # in ppm
+      filters:
+        - median
+  - platform: absolute_humidity
+    name: "$entitysub Absolute Humidity"
+    temperature: temperature
+    humidity: humidity
+
+text_sensor:
+  - platform: bme680_bsec
+    iaq_accuracy:
+      # IAQ accuracy as a text value of Stabilizing, Uncertain, Calibrating, Calibrated
+      name: "$entitysub IAQ Accuracy"
+  - platform: template
+    name: "$entitysub IAQ Classification"
+    icon: "mdi:checkbox-marked-circle-outline"
+    lambda: |-
+      if ( int(id(iaq).state) <= 50) {
+        return {"Excellent"};
+      }
+      else if (int(id(iaq).state) >= 51 && int(id(iaq).state) <= 100) {
+        return {"Good"};
+      }
+      else if (int(id(iaq).state) >= 101 && int(id(iaq).state) <= 150) {
+        return {"Lightly polluted"};
+      }
+      else if (int(id(iaq).state) >= 151 && int(id(iaq).state) <= 200) {
+        return {"Moderately polluted"};
+      }
+      else if (int(id(iaq).state) >= 201 && int(id(iaq).state) <= 250) {
+        return {"Heavily polluted"};
+      }
+      else if (int(id(iaq).state) >= 251 && int(id(iaq).state) <= 350) {
+        return {"Severely polluted"};
+      }
+      else if (int(id(iaq).state) >= 351) {
+        return {"Extremely polluted"};
+      }
+      else {
+        return {"error"};
+      }
