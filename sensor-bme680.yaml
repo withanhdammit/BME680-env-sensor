@@ -1,7 +1,7 @@
 substitutions:
   sensorname: sensor-bme680
   entitysub: BME680
-  ipaddress: 10.1.2.3
+  ipaddress: 10.42.100.108
   domain: !secret domain
 
 esphome:
@@ -30,7 +30,7 @@ wifi:
     ssid: $sensorname
     password: !secret esphome_password
 
-  use_address: $sensorname.$domain
+  use_address: $ipaddress #$sensorname.$domain
   manual_ip:
     static_ip: $ipaddress
     subnet: !secret subnet
@@ -42,11 +42,13 @@ captive_portal:
 web_server:
   port: 80
   auth:
-    username: !secret web_server_username
-    password: !secret web_server_password
+    username: !secret web_username
+    password: !secret ap_password
 
 # Device config
 i2c:
+  sda: D4
+  scl: D3
   scan: true
 
 switch:
@@ -55,7 +57,7 @@ switch:
 
 bme680_bsec:
   address: 0x77 # 0x76 or 0x77
-  temperature_offset: 0 # if temp reads 5 deg high, set this to 5
+  temperature_offset: 0 # i.e. if temp reads 5 deg high, set this to 5
   iaq_mode: static # static or mobile (on a person or moveable device)
   sample_rate: lp # lp=low power (3 sec) or ulp=ultra low power (5 min)
                   # note you can set on a per-sensor level
